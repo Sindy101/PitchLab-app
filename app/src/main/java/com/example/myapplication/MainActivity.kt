@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.icu.text.Transliterator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +41,10 @@ import com.example.myapplication.data.audio.AudioRecorder
 import com.example.myapplication.ui.theme.TextLarge1
 import com.example.myapplication.ui.theme.TextLarge2
 import kotlinx.coroutines.launch
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
 
 
 @Composable
@@ -104,14 +110,39 @@ fun MainScreen() {
         BottomPanel()
     }
 }
-
 @Composable
 fun CircleContent(modifier: Modifier = Modifier, hasPermission: Boolean) {
+    var textV by remember { mutableStateOf("A") }
+    var expanded by remember { mutableStateOf(false) }
+    var buttonHeight = 0
     Box(
-        modifier = modifier.background(Color(red = 25, green = 25, blue = 25)),
-        contentAlignment = Alignment.Center
+        modifier = modifier.background(Color(red = 25, green = 25, blue = 25))
+        //contentAlignment = Alignment.Center
     ) {
         // Сам круг
+        Button(
+            onClick = {
+                //textV = "B"
+                expanded = true
+            },
+            modifier = Modifier.align(Alignment.TopCenter).padding(32.dp),
+
+            //modifier.background(Color(red = 70, green = 29, blue = 30)),
+        ) {
+            Text("Кнопошка")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = {expanded = false}
+        ) {
+            DropdownMenuItem(
+                text = {Text("Пункт 1")},
+                onClick = {
+                    textV = "Выбран пункт 1"
+                    expanded = false
+                }
+            )
+        }
         Box(
             Modifier
                 .size(260.dp)
@@ -120,23 +151,25 @@ fun CircleContent(modifier: Modifier = Modifier, hasPermission: Boolean) {
                     // Цвет круга зависит от того, есть ли разрешение
                     color = if (hasPermission) Color.Green else Color.Red,
                     shape = RoundedCornerShape(50)
-                )
-        )
+                ).align(Alignment.Center),
+            contentAlignment = Alignment.Center
+        ) {
 
-        // Отображаем разный текст в зависимости от наличия разрешения
-        if (hasPermission) {
-            Text(
-                text = "A",
-                style = TextLarge1
-            )
-            // Здесь можно инициализировать и использовать AudioRecorder,
-            // так как разрешение уже получено.
-        } else {
-            Text(
-                text = "Дай разрешение на микрофон!",
-                style = TextLarge2.copy(fontSize = TextLarge2.fontSize / 2),
-                modifier = Modifier.padding(16.dp)
-            )
+            // Отображаем разный текст в зависимости от наличия разрешения
+            if (hasPermission) {
+                Text(
+                    text = textV,
+                    style = TextLarge1
+                )
+                // Здесь можно инициализировать и использовать AudioRecorder,
+                // так как разрешение уже получено.
+            } else {
+                Text(
+                    text = "Дай разрешение на микрофон!",
+                    style = TextLarge2.copy(fontSize = TextLarge2.fontSize / 2),
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
     }
 }

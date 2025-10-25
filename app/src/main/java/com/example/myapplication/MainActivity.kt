@@ -17,10 +17,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+//import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -43,9 +48,13 @@ import com.example.myapplication.ui.theme.TextLarge2
 import kotlinx.coroutines.launch
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+//import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onGloballyPositioned
-
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutCoordinates
 
 @Composable
 fun MyApplicationTheme(content: @Composable () -> Unit) {
@@ -114,34 +123,45 @@ fun MainScreen() {
 fun CircleContent(modifier: Modifier = Modifier, hasPermission: Boolean) {
     var textV by remember { mutableStateOf("A") }
     var expanded by remember { mutableStateOf(false) }
-    var buttonHeight = 0
     Box(
         modifier = modifier.background(Color(red = 25, green = 25, blue = 25))
         //contentAlignment = Alignment.Center
     ) {
         // Сам круг
-        Button(
-            onClick = {
-                //textV = "B"
-                expanded = true
-            },
-            modifier = Modifier.align(Alignment.TopCenter).padding(32.dp),
-
-            //modifier.background(Color(red = 70, green = 29, blue = 30)),
-        ) {
-            Text("Кнопошка")
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = {expanded = false}
-        ) {
-            DropdownMenuItem(
-                text = {Text("Пункт 1")},
+        Box(
+            Modifier.fillMaxWidth().padding(top = 30.dp)
+        ){
+            Button(
                 onClick = {
-                    textV = "Выбран пункт 1"
-                    expanded = false
+                    expanded = true
+                },
+                modifier = Modifier.align(Alignment.TopStart),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White
+                ),
+                shape = CircleShape,
+                elevation = null
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Меню",
+                    modifier = Modifier.size(24.dp),
+                )
+                //Text("Кнопошка")
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = {expanded = false}
+                ) {
+                    DropdownMenuItem(
+                        text = {Text("Пункт 1")},
+                        onClick = {
+                            textV = "Выбран пункт 1"
+                            expanded = false
+                        }
+                    )
                 }
-            )
+            }
         }
         Box(
             Modifier

@@ -145,7 +145,7 @@ fun CircleContent(modifier: Modifier = Modifier, hasPermission: Boolean) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Menu,
-                    contentDescription = "Меню",
+                    contentDescription = "Менюшка",
                     modifier = Modifier.size(24.dp),
                 )
                 //Text("Кнопошка")

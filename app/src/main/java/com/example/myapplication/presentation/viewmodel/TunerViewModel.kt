@@ -1,7 +1,11 @@
 package com.example.myapplication.presentation.viewmodel
 
+import android.Manifest
+import android.content.Context
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.myapplication.data.audio.AudioRecorder
 import com.example.myapplication.domain.model.TuningResult
 import com.example.myapplication.domain.usecase.DetectNoteUseCase
 import kotlinx.coroutines.Job
@@ -10,47 +14,57 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-// ViewModel для работы с тюнером
 class TunerViewModel(
-    private val detectNoteUseCase: DetectNoteUseCase
+    private val detectNoteUseCase: DetectNoteUseCase,
+    private val recorder: AudioRecorder,
+    private val context: Context // нужен для проверки разрешения
 ) : ViewModel() {
 
-    // Состояние текущего анализа
     private val _tuningState = MutableStateFlow<TuningResult?>(null)
     val tuningState = _tuningState.asStateFlow()
 
-    private var tuningJob: Job? = null       // Корутин Job для анализа
-    private var isRunning = false            // Флаг активности
+    private var tuningJob: Job? = null
+    private var isRunning = false
 
-    // Запуск анализа (если не запущен)
     fun startTuning() {
-        if (isRunning) return        // защита от двойного запуска
-        isRunning = true
+        if (isRunning) return
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return // разрешение нет
 
+        try {
+            recorder.start()
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            return
+        }
+
+        isRunning = true
         tuningJob = viewModelScope.launch {
             while (isRunning) {
-                val result = detectNoteUseCase()   // Получаем данные анализа
-                _tuningState.value = result        // Обновляем поток
-                //delay(250)                         // Пауза между измерениями
+                val result = detectNoteUseCase()   // анализ с микрофона
+                _tuningState.value = result
+                delay(100) // частота обновления ~10 раз в секунду
             }
         }
     }
 
-    // Остановка анализа
     fun stopTuning() {
         isRunning = false
         tuningJob?.cancel()
         tuningJob = null
+        try {
+            recorder.stop()
+        } catch (_: SecurityException) {}
     }
 
-    // Переключение состояния анализа (кнопка микрофона)
     fun toggleTuning() {
         if (isRunning) stopTuning() else startTuning()
     }
 
-    // Очистка при уничтожении ViewModel
     override fun onCleared() {
         super.onCleared()
         stopTuning()
+        recorder.release()
     }
 }

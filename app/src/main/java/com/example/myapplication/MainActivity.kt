@@ -80,7 +80,11 @@ fun MainScreenContent(onOpenSettings: () -> Unit) {
     val repository = remember { TunerRepositoryImpl(recorder) }
     val useCase = remember { DetectNoteUseCase(repository) }
     val viewModel: TunerViewModel = viewModel(
-        factory = TunerViewModelFactory(useCase)
+        factory = TunerViewModelFactory(
+            detectNoteUseCase = useCase,
+            recorder = recorder,
+            context = LocalContext.current
+        )
     )
 
     var hasPermission by remember {
@@ -182,8 +186,6 @@ fun CircleContent(
                     if (!hasPermission) {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     } else {
-                        val newState = !micEnabledExternal
-                        onMicToggle(newState)
                         viewModel.toggleTuning()
                     }
                 },

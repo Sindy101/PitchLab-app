@@ -22,6 +22,15 @@ class TunerRepositoryImpl(
         // 🔹 Снимаем аудио с микрофона через AudioRecorder
         val buffer = recorder.captureAudio()
 
+        // 🔹 Если буфер пустой, возвращаем пустой результат
+        if (buffer.isEmpty()) return TuningResult(null, 0.0, false, 0.0)
+
+        // 🔹 Проверяем амплитуду сигнала
+        val amplitude = buffer.map { kotlin.math.abs(it.toInt()) }.average()
+        if (amplitude < 500.0) { // порог, подбирается под твой микрофон
+            return TuningResult(null, 0.0, false, 0.0) // считаем тишину
+        }
+
         // 🔹 Определяем частоту с помощью PitchDetector
         val freq = PitchDetector.detectFrequency(buffer, sampleRate)
 
@@ -30,24 +39,21 @@ class TunerRepositoryImpl(
             return TuningResult(null, 0.0, false, 0.0)
         }
 
-        // 🔹 Находим ближайшую эталонную ноту среди стандартной настройки гитары
-        // standardGuitarTuning — список Note(name: String, frequency: Double)
+        // 🔹 Находим ближайшую эталонную ноту
         val closest = standardGuitarTuning.minByOrNull { abs(it.frequency - freq) }
-            ?: return TuningResult(null, 0.0, false, freq) // На всякий случай, если список пуст
+            ?: return TuningResult(null, 0.0, false, freq)
 
         // 🔹 Вычисляем отклонение в центах
-        // Формула: cents = 1200 * log2(freq / эталонная частота)
         val centsDiff = 1200 * log2(freq / closest.frequency)
 
-        // 🔹 Считаем, что струна настроена, если отклонение менее ±5 центов
+        // 🔹 Струна в строю, если отклонение < ±5 центов
         val isInTune = abs(centsDiff) < 5
 
-        // 🔹 Возвращаем объект TuningResult с результатами анализа
         return TuningResult(
-            closest,     // Ближайшая эталонная нота
-            centsDiff,   // Отклонение в центах
-            isInTune,    // Струна в строю?
-            freq         // Определённая частота
+            closest,
+            centsDiff,
+            isInTune,
+            freq
         )
     }
 }

@@ -2,210 +2,284 @@ package com.example.myapplication
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.icu.text.Transliterator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-//import androidx.compose.ui.Alignment
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.*
 import com.example.myapplication.data.audio.AudioRecorder
+import com.example.myapplication.data.repository.TunerRepositoryImpl
+import com.example.myapplication.domain.model.TuningResult
+import com.example.myapplication.domain.usecase.DetectNoteUseCase
+import com.example.myapplication.presentation.viewmodel.TunerViewModel
+import com.example.myapplication.presentation.viewmodel.TunerViewModelFactory
 import com.example.myapplication.ui.theme.TextLarge1
 import com.example.myapplication.ui.theme.TextLarge2
-import kotlinx.coroutines.launch
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.ui.Alignment
-//import androidx.compose.ui.Alignment
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.LayoutCoordinates
-
-@Composable
-fun MyApplicationTheme(content: @Composable () -> Unit) {
-    content()
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                MainScreen()
-            }
+            NavigationRoot()
         }
     }
 }
 
 @Composable
-fun MainScreen() {
-    // Получаем контекст, он нужен для проверки разрешений
+fun NavigationRoot() {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "main") {
+
+        composable("main") {
+            MainScreenContent(
+                onOpenSettings = {
+                    navController.navigate("settings")
+                }
+            )
+        }
+
+        composable("settings") {
+            SettingsScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+@Composable
+fun MainScreenContent(onOpenSettings: () -> Unit) {
     val context = LocalContext.current
-    // Состояние для отслеживания, есть ли у нас разрешение
+
+    val recorder = remember { AudioRecorder() }
+    val repository = remember { TunerRepositoryImpl(recorder) }
+    val useCase = remember { DetectNoteUseCase(repository) }
+    val viewModel: TunerViewModel = viewModel(
+        factory = TunerViewModelFactory(useCase)
+    )
+
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
+                context, Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
 
-    // Создаем лаунчер, который будет запрашивать разрешение
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
-        // Этот блок выполнится после того, как пользователь ответит на запрос
-        hasPermission = isGranted
-    }
+    // ⚠️ ИСПРАВЛЕНО → после выдачи разрешения сразу включаем микрофон и анализ
+    var micEnabled by remember { mutableStateOf(false) }
 
-    // Этот блок запустится один раз при отображении экрана
-    LaunchedEffect(key1 = Unit) {
-        if (!hasPermission) {
-            // Если разрешения нет, запускаем запрос
-            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasPermission = granted
+        if (granted) {
+            recorder.prepareRecorder()
+            micEnabled = true
+            viewModel.toggleTuning()    // <<< ЗАПУСК АНАЛИЗА СРАЗУ
         }
     }
 
+    val tuning by viewModel.tuningState.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(red = 25, green = 25, blue = 25))
+            .background(Color(25, 25, 25))
     ) {
         CircleContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            // Передаем статус разрешения в дочерний компонент
-            hasPermission = hasPermission
+            hasPermission = hasPermission,
+            viewModel = viewModel,
+            tuning = tuning,
+            permissionLauncher = permissionLauncher,
+            recorder = recorder,
+            onOpenSettings = onOpenSettings,
+            micEnabledExternal = micEnabled,
+            onMicToggle = { micEnabled = it }
         )
         BottomPanel()
     }
 }
+
 @Composable
-fun CircleContent(modifier: Modifier = Modifier, hasPermission: Boolean) {
-    var textV by remember { mutableStateOf("A") }
+fun CircleContent(
+    modifier: Modifier = Modifier,
+    hasPermission: Boolean,
+    viewModel: TunerViewModel,
+    tuning: TuningResult?,
+    permissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
+    recorder: AudioRecorder,
+    onOpenSettings: () -> Unit,
+    micEnabledExternal: Boolean,
+    onMicToggle: (Boolean) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
-    Box(
-        modifier = modifier.background(Color(red = 25, green = 25, blue = 25))
-        //contentAlignment = Alignment.Center
-    ) {
-        // Сам круг
+    var selectedString by remember { mutableStateOf("0") }
+
+    Box(modifier.background(Color(25, 25, 25))) {
+
+        // Верхние кнопки
         Box(
-            Modifier.fillMaxWidth().padding(top = 30.dp)
-        ){
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 30.dp, end = 20.dp)
+        ) {
             Button(
-                onClick = {
-                    expanded = true
-                },
+                onClick = { expanded = true },
                 modifier = Modifier.align(Alignment.TopStart),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = Color.White
                 ),
-                shape = CircleShape,
-                elevation = null
+                shape = CircleShape
             ) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Менюшка",
-                    modifier = Modifier.size(24.dp),
-                )
-                //Text("Кнопошка")
+                Icon(Icons.Default.Menu, contentDescription = null)
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = {expanded = false}
+                    onDismissRequest = { expanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = {Text("Пункт 1")},
+                        text = { Text("Настройки") },
                         onClick = {
-                            textV = "Выбран пункт 1"
                             expanded = false
+                            onOpenSettings()
                         }
                     )
                 }
             }
+
+            // ⚠️ Кнопка микрофона — логика прежняя
+            Button(
+                onClick = {
+                    if (!hasPermission) {
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        val newState = !micEnabledExternal
+                        onMicToggle(newState)
+                        viewModel.toggleTuning()
+                    }
+                },
+                modifier = Modifier.align(Alignment.TopEnd),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent
+                )
+            ) {
+                Image(
+                    painter = painterResource(
+                        if (!micEnabledExternal) R.drawable.mic else R.drawable.microaaa
+                    ),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
+
+        // Центральный круг
         Box(
             Modifier
                 .size(260.dp)
                 .border(
                     width = 8.dp,
-                    // Цвет круга зависит от того, есть ли разрешение
                     color = if (hasPermission) Color.Green else Color.Red,
                     shape = RoundedCornerShape(50)
-                ).align(Alignment.Center),
+                )
+                .align(Alignment.Center),
             contentAlignment = Alignment.Center
         ) {
-
-            // Отображаем разный текст в зависимости от наличия разрешения
-            if (hasPermission) {
+            if (!hasPermission) {
                 Text(
-                    text = textV,
-                    style = TextLarge1
-                )
-                // Здесь можно инициализировать и использовать AudioRecorder,
-                // так как разрешение уже получено.
-            } else {
-                Text(
-                    text = "Дай разрешение на микрофон!",
-                    style = TextLarge2.copy(fontSize = TextLarge2.fontSize / 2),
+                    "Дай разрешение на микрофон!",
+                    style = TextLarge2.copy(fontSize = 18.sp),
                     modifier = Modifier.padding(16.dp)
                 )
+            } else {
+                val note = tuning?.detectedNote?.name ?: "—"
+                val freq = tuning?.detectedFrequency?.let { "%.1f Hz".format(it) } ?: ""
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(note, style = TextLarge1)
+                    Text(freq, style = TextLarge2.copy(fontSize = 22.sp))
+                }
+            }
+        }
+
+        // Блок кнопок выбора струны
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val strings = listOf("E", "B", "G", "D", "A", "E")
+                strings.forEachIndexed { index, s ->
+                    val strNum = (index + 1).toString()
+                    Button(
+                        onClick = {
+                            selectedString = if (selectedString == strNum) "0" else strNum
+                        },
+                        modifier = Modifier
+                            .size(50.dp)
+                            .border(
+                                width = 2.dp,
+                                color = Color.Green,
+                                shape = CircleShape
+                            ),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor =
+                                if (selectedString == strNum) Color.Green else Color.Transparent
+                        )
+                    ) {
+                        Text(s, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
             }
         }
     }
 }
 
-
 @Composable
 fun BottomPanel() {
-    Box (
+    Box(
         Modifier
             .fillMaxWidth()
-            .background(Color(red = 21, green = 23, blue = 28))
-            .height(200.dp),
-
-        )
-    {
-
+            .background(Color(21, 23, 28))
+            .height(200.dp)
+    ) {
         Image(
             painter = painterResource(id = R.mipmap.scale),
             contentDescription = "",

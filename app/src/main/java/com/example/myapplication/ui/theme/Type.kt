@@ -47,3 +47,9 @@ val TextLarge2 = TextStyle(
     fontSize = 32.sp,
     color = Color.White
 )
+val ButtonText = TextStyle(
+    fontFamily = FontFamily.Default,
+    fontWeight = FontWeight.Normal,
+    fontSize = 10.sp,
+    color = Color.White
+)

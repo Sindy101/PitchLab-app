@@ -1,0 +1,33 @@
+[
+  {
+    "name": "Guitar Standard",
+    "type": "GUITAR",
+    "strings": [
+      {"name": "E2", "frequency": 82.41},
+      {"name": "A2", "frequency": 110.00},
+      {"name": "D3", "frequency": 146.83},
+      {"name": "G3", "frequency": 196.00},
+      {"name": "B3", "frequency": 246.94},
+      {"name": "E4", "frequency": 329.63}
+    ]
+  },
+  {
+    "name": "Ukulele Standard",
+    "type": "UKULELE",
+    "strings": [
+      {"name": "G4", "frequency": 392.00},
+      {"name": "C4", "frequency": 261.63},
+      {"name": "E4", "frequency": 329.63},
+      {"name": "A4", "frequency": 440.00}
+    ]
+  },
+  {
+    "name": "Balalaika Prima",
+    "type": "BALALAIKA",
+    "strings": [
+      {"name": "E4", "frequency": 329.63},
+      {"name": "E4", "frequency": 329.63},
+      {"name": "A4", "frequency": 440.00}
+    ]
+  }
+]

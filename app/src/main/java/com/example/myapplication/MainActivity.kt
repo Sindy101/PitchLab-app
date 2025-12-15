@@ -353,13 +353,32 @@ fun CircleContent(
             contentAlignment = Alignment.Center
         ) {
             when {
-                // 1. Нет разрешения - показываем текст
+                // 1. Нет разрешения - показываем текст и картинку falsemic.png
                 !hasPermission -> {
-                    Text(
-                        "Дай разрешение на микрофон!",
-                        style = TextLarge2.copy(fontSize = 18.sp, textAlign = TextAlign.Center),
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        // Текст сверху
+                        Text(
+                            "Дай разрешение на микрофон!",
+                            style = TextLarge2.copy(
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center,
+                                color = Color.White
+                            ),
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        // Картинка falsemic.png под текстом
+                        Image(
+                            painter = painterResource(id = R.drawable.falsemic),
+                            contentDescription = "Нет разрешения на микрофон",
+                            modifier = Modifier
+                                .size(100.dp), // Размер картинки
+                            contentScale = ContentScale.Fit
+                        )
+                    }
                 }
                 // 2. Есть разрешение, но микрофон выключен - показываем картинку falsemic.png
                 !micEnabled -> {
@@ -367,7 +386,7 @@ fun CircleContent(
                         painter = painterResource(id = R.drawable.falsemic),
                         contentDescription = "Микрофон выключен",
                         modifier = Modifier
-                            .size(180.dp) // Размер картинки, можно настроить
+                            .size(180.dp) // Размер картинки
                             .padding(16.dp),
                         contentScale = ContentScale.Fit
                     )

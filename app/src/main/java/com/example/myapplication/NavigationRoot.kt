@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.MainScreenContent
 import com.example.myapplication.SettingsScreen
 import com.example.myapplication.AboutScreen
+import com.example.myapplication.TuningTipsScreen  // Добавить этот импорт
 import com.example.myapplication.data.audio.AudioRecorder
 import com.example.myapplication.data.repository.AssetsTuningDataSource
 import com.example.myapplication.data.repository.InstrumentRepository
@@ -70,7 +71,8 @@ private fun NavGraphBuilder.mainNavigationGraph(
             MainScreenContent(
                 viewModel = viewModel,
                 onOpenSettings = { navController.navigate("settings") },
-                onOpenAbout = { navController.navigate("about") }
+                onOpenAbout = { navController.navigate("about") },
+                onOpenTuningTips = { navController.navigate("tuning_tips") }  // Добавить этот параметр
             )
         }
 
@@ -93,6 +95,12 @@ private fun NavGraphBuilder.mainNavigationGraph(
 
         composable("about") {
             AboutScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("tuning_tips") {  // Добавить этот экран
+            TuningTipsScreen(
                 onBack = { navController.popBackStack() }
             )
         }

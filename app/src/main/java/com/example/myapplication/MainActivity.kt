@@ -57,7 +57,8 @@ class MainActivity : ComponentActivity() {
 fun MainScreenContent(
     viewModel: TunerViewModel,
     onOpenSettings: () -> Unit,
-    onOpenAbout: () -> Unit
+    onOpenAbout: () -> Unit,
+    onOpenTuningTips: () -> Unit
 ) {
     val context = LocalContext.current
     val recorder = viewModel.recorder
@@ -101,6 +102,7 @@ fun MainScreenContent(
             recorder = recorder,
             onOpenSettings = onOpenSettings,
             onOpenAbout = onOpenAbout,
+            onOpenTuningTips = onOpenTuningTips,
             micEnabledExternal = micEnabled,
             onMicToggle = { micEnabled = it }
         )
@@ -119,6 +121,7 @@ fun CircleContent(
     recorder: AudioRecorder,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenTuningTips: () -> Unit,
     micEnabledExternal: Boolean,
     onMicToggle: (Boolean) -> Unit
 ) {
@@ -199,7 +202,7 @@ fun CircleContent(
 
     // Состояние для мигания
     var isBlinking by remember { mutableStateOf(false) }
-    
+
     val animatedColor by animateColorAsState(
         targetValue = when {
             // Если нет разрешения - красный цвет
@@ -208,12 +211,14 @@ fun CircleContent(
             }
             // Если есть разрешение и микрофон включен - зеленый
             hasPermission && micEnabled -> Color.Green
-            // Если есть разрешение, микрофон выключен, выбрана струна - мигающий зеленый
+            // Если есть разрешение, микрофон выключен, выбрана струна - мигающий красный
             hasPermission && !micEnabled && selectedString > 0 -> {
                 if (isBlinking) Color.Red else Color.Red.copy(alpha = 0.3f)
             }
-            // Если есть разрешение, микрофон выключен, струна не выбрана - полупрозрачный зеленый
-            else -> Color.Green.copy(alpha = 0.3f)
+            // Если есть разрешение, микрофон выключен, струна не выбрана - полупрозрачный красный
+            hasPermission && !micEnabled -> Color.Red.copy(alpha = 0.3f)
+            // Все остальные случаи (на всякий случай) - зеленый
+            else -> Color.Green
         },
         animationSpec = tween(durationMillis = 200),
         label = "borderColor"
@@ -292,6 +297,13 @@ fun CircleContent(
                             onOpenAbout()
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("Советы по настройке") },
+                        onClick = {
+                            expanded = false
+                            onOpenTuningTips()
+                        }
+                    )
                 }
             }
 
@@ -340,20 +352,36 @@ fun CircleContent(
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center
         ) {
-            if (!hasPermission) {
-                Text(
-                    "Дай разрешение на микрофон!",
-                    style = TextLarge2.copy(fontSize = 18.sp, textAlign = TextAlign.Center),
-                    modifier = Modifier.padding(16.dp),
-                )
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(noteText, style = TextLarge1)
-                    Text(freqText, style = TextLarge2.copy(fontSize = 22.sp))
+            when {
+                // 1. Нет разрешения - показываем текст
+                !hasPermission -> {
                     Text(
-                        centsText,
-                        style = TextLarge2.copy(fontSize = 18.sp, color = Color.LightGray)
+                        "Дай разрешение на микрофон!",
+                        style = TextLarge2.copy(fontSize = 18.sp, textAlign = TextAlign.Center),
+                        modifier = Modifier.padding(16.dp),
                     )
+                }
+                // 2. Есть разрешение, но микрофон выключен - показываем картинку falsemic.png
+                !micEnabled -> {
+                    Image(
+                        painter = painterResource(id = R.drawable.falsemic),
+                        contentDescription = "Микрофон выключен",
+                        modifier = Modifier
+                            .size(180.dp) // Размер картинки, можно настроить
+                            .padding(16.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+                // 3. Есть разрешение и микрофон включен - показываем информацию о настройке
+                else -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(noteText, style = TextLarge1)
+                        Text(freqText, style = TextLarge2.copy(fontSize = 22.sp))
+                        Text(
+                            centsText,
+                            style = TextLarge2.copy(fontSize = 18.sp, color = Color.LightGray)
+                        )
+                    }
                 }
             }
         }

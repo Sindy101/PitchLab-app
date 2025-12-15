@@ -1,4 +1,3 @@
-import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -10,6 +9,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.MainScreenContent
 import com.example.myapplication.SettingsScreen
+import com.example.myapplication.AboutScreen
 import com.example.myapplication.data.audio.AudioRecorder
 import com.example.myapplication.data.repository.AssetsTuningDataSource
 import com.example.myapplication.data.repository.InstrumentRepository
@@ -69,7 +69,8 @@ private fun NavGraphBuilder.mainNavigationGraph(
 
             MainScreenContent(
                 viewModel = viewModel,
-                onOpenSettings = { navController.navigate("settings") }
+                onOpenSettings = { navController.navigate("settings") },
+                onOpenAbout = { navController.navigate("about") }
             )
         }
 
@@ -86,6 +87,12 @@ private fun NavGraphBuilder.mainNavigationGraph(
 
             SettingsScreen(
                 viewModel = viewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("about") {
+            AboutScreen(
                 onBack = { navController.popBackStack() }
             )
         }

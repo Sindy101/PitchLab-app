@@ -10,6 +10,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,21 +30,17 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.*
 import com.example.myapplication.data.audio.AudioRecorder
-import com.example.myapplication.data.repository.AssetsTuningDataSource
-import com.example.myapplication.data.repository.InstrumentRepository
-import com.example.myapplication.data.repository.TunerRepositoryImpl
 import com.example.myapplication.domain.model.TuningResult
-import com.example.myapplication.domain.usecase.DetectNoteUseCase
 import com.example.myapplication.presentation.viewmodel.TunerViewModel
-import com.example.myapplication.presentation.viewmodel.TunerViewModelFactory
 import com.example.myapplication.ui.theme.TextLarge1
 import com.example.myapplication.ui.theme.TextLarge2
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,7 +56,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenContent(
     viewModel: TunerViewModel,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit
 ) {
     val context = LocalContext.current
     val recorder = viewModel.recorder
@@ -101,6 +100,7 @@ fun MainScreenContent(
             permissionLauncher = permissionLauncher,
             recorder = recorder,
             onOpenSettings = onOpenSettings,
+            onOpenAbout = onOpenAbout,
             micEnabledExternal = micEnabled,
             onMicToggle = { micEnabled = it }
         )
@@ -118,16 +118,15 @@ fun CircleContent(
     permissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
     recorder: AudioRecorder,
     onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
     micEnabledExternal: Boolean,
     onMicToggle: (Boolean) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var micEnabled by remember { mutableStateOf(false) }
+
+    var micEnabled = micEnabledExternal
     var posit by remember { mutableStateOf(90f) }
 
-    // ================================
-    // ✔ СТАБИЛИЗАЦИЯ ЧАСТОТЫ (Hz)
-    // ================================
     var displayedFreq by remember { mutableStateOf(0.0) }
     var lastStableFreq by remember { mutableStateOf(System.currentTimeMillis()) }
 
@@ -156,9 +155,6 @@ fun CircleContent(
         else "—"
 
 
-    // ================================
-    // ✔ СТАБИЛИЗАЦИЯ CENTS
-    // ================================
     var displayedCents by remember { mutableStateOf(0.0) }
     var lastStableCents by remember { mutableStateOf(System.currentTimeMillis()) }
 
@@ -185,9 +181,7 @@ fun CircleContent(
         }
 
 
-    // ==================================================
-    // 🔥 СБРОС ПРИ ВЫБОРЕ СТРУНЫ
-    // ==================================================
+
     val selectedString by viewModel.selectedStringIndex.collectAsState()
 
     LaunchedEffect(selectedString) {
@@ -200,8 +194,67 @@ fun CircleContent(
         // Сброс индикатора в центр
         posit = 90f
     }
-    // ==================================================
 
+    val coroutineScope = rememberCoroutineScope()
+
+    // Состояние для мигания
+    var isBlinking by remember { mutableStateOf(false) }
+    
+    val animatedColor by animateColorAsState(
+        targetValue = when {
+            // Если нет разрешения - красный цвет
+            !hasPermission -> {
+                if (isBlinking) Color.Red else Color.Red.copy(alpha = 0.3f)
+            }
+            // Если есть разрешение и микрофон включен - зеленый
+            hasPermission && micEnabled -> Color.Green
+            // Если есть разрешение, микрофон выключен, выбрана струна - мигающий зеленый
+            hasPermission && !micEnabled && selectedString > 0 -> {
+                if (isBlinking) Color.Red else Color.Red.copy(alpha = 0.3f)
+            }
+            // Если есть разрешение, микрофон выключен, струна не выбрана - полупрозрачный зеленый
+            else -> Color.Green.copy(alpha = 0.3f)
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "borderColor"
+    )
+
+    // Функция для запуска мигания
+    fun startBlinking() {
+        coroutineScope.launch {
+            // Сбрасываем состояние мигания
+            isBlinking = false
+
+            // Мигаем 3 раза (6 изменений состояния: вкл/выкл/вкл/выкл/вкл/выкл)
+            repeat(9) { blinkIndex ->
+                isBlinking = !isBlinking
+                delay(300L) // Интервал 300ms между изменениями
+            }
+            // После 3 миганий оставляем без мигания
+            isBlinking = false
+        }
+    }
+
+    // Запускаем мигание при отсутствии разрешения
+    LaunchedEffect(hasPermission) {
+        if (!hasPermission) {
+            startBlinking()
+        }
+    }
+
+    // Запускаем мигание при выборе струны, когда микрофон выключен
+    LaunchedEffect(selectedString) {
+        if (hasPermission && !micEnabled && selectedString > 0) {
+            startBlinking()
+        }
+    }
+
+    // Запускаем мигание при выключении микрофона, если выбрана струна
+    LaunchedEffect(micEnabled) {
+        if (!micEnabled && selectedString > 0) {
+            startBlinking()
+        }
+    }
 
     Box(modifier.background(Color(25, 25, 25))) {
 
@@ -232,6 +285,13 @@ fun CircleContent(
                             onOpenSettings()
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("О приложении") },
+                        onClick = {
+                            expanded = false
+                            onOpenAbout()
+                        }
+                    )
                 }
             }
 
@@ -239,10 +299,17 @@ fun CircleContent(
                 onClick = {
                     if (!hasPermission) {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        micEnabled = !micEnabled
+                        // Обновляем состояние микрофона
+                        onMicToggle(!micEnabled)
                     } else {
                         viewModel.toggleTuning()
-                        micEnabled = !micEnabled
+                        // Обновляем состояние микрофона
+                        onMicToggle(!micEnabled)
+
+                        // Если микрофон выключили и выбрана струна - мигаем
+                        if (micEnabled && selectedString > 0) {
+                            startBlinking()
+                        }
                     }
                 },
                 modifier = Modifier.align(Alignment.TopEnd),
@@ -267,7 +334,7 @@ fun CircleContent(
                 .size(260.dp)
                 .border(
                     width = 8.dp,
-                    color = if (hasPermission) Color.Green else Color.Red,
+                    color = animatedColor, // Используем анимированный цвет
                     shape = RoundedCornerShape(50)
                 )
                 .align(Alignment.Center),
@@ -276,8 +343,8 @@ fun CircleContent(
             if (!hasPermission) {
                 Text(
                     "Дай разрешение на микрофон!",
-                    style = TextLarge2.copy(fontSize = 18.sp),
-                    modifier = Modifier.padding(16.dp)
+                    style = TextLarge2.copy(fontSize = 18.sp, textAlign = TextAlign.Center),
+                    modifier = Modifier.padding(16.dp),
                 )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -310,7 +377,13 @@ fun CircleContent(
                     val num = index + 1
 
                     Button(
-                        onClick = { viewModel.selectString(num) },
+                        onClick = {
+                            viewModel.selectString(num)
+                            // Если микрофон выключен - запускаем мигание
+                            if (!micEnabled) {
+                                startBlinking()
+                            }
+                        },
                         modifier = Modifier
                             .size(50.dp)
                             .border(
@@ -353,9 +426,8 @@ fun CircleContent(
                 .height(20.dp)
         )
     }
-
-
 }
+
 
 @Composable
 fun BottomPanel() {
